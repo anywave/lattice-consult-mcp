@@ -45,13 +45,27 @@ class GeminiProvider(LatticeProvider):
 
         t0 = time.monotonic()
         try:
+            # Gemini 2.5-class models (Flash/Pro "latest") bill internal "thinking"
+            # tokens against maxOutputTokens. With a conservative cap (e.g. 300)
+            # thinking can consume the whole budget and leave near-zero visible
+            # output, producing a MAX_TOKENS finishReason and a truncated reply.
+            # Disable thinking by default so max_tokens behaves like every other
+            # provider ("visible output cap"). Callers who want reasoning can
+            # opt back in via a future explicit kwarg.
+            generation_config = {
+                "maxOutputTokens": max_tokens,
+            }
+            is_thinking_model = (
+                "2.5" in m or "flash-latest" in m or "pro-latest" in m
+            )
+            if is_thinking_model:
+                generation_config["thinkingConfig"] = {"thinkingBudget": 0}
+
             payload = {
                 "contents": [
                     {"parts": [{"text": prompt}]},
                 ],
-                "generationConfig": {
-                    "maxOutputTokens": max_tokens,
-                },
+                "generationConfig": generation_config,
             }
             if system:
                 payload["systemInstruction"] = {
@@ -88,10 +102,13 @@ class GeminiProvider(LatticeProvider):
                         text_parts.append(part["text"])
             text = "".join(text_parts)
 
-            # Extract token usage
+            # Extract token usage. Include thoughtsTokenCount so that thinking
+            # tokens are visible in cost/usage even when present (defends
+            # against a regression of the silent-truncation bug if a future
+            # caller re-enables thinking).
             usage = data.get("usageMetadata", {})
             tin = usage.get("promptTokenCount", 0)
-            tout = usage.get("candidatesTokenCount", 0)
+            tout = usage.get("candidatesTokenCount", 0) + usage.get("thoughtsTokenCount", 0)
             cost = self.estimate_cost(tin, tout)
 
             return SingleResponse(
