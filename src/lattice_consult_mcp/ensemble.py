@@ -25,7 +25,7 @@ class ProviderSpec:
 @dataclass
 class EnsembleResponse:
     synthesized_response: str
-    convergence_score: float
+    convergence_score: Optional[float]
     divergence_findings: List[str]
     confidence_signal: str
     providers_consulted: List[str]
@@ -33,6 +33,8 @@ class EnsembleResponse:
     total_cost_usd: float
     total_latency_ms: int
     raw_outputs: Dict[str, dict] = field(default_factory=dict)
+    providers_skipped: List[str] = field(default_factory=list)  # excluded by tier/availability -- never silently dropped
+    single_provider: bool = False  # True when synthesis ran on a single provider (convergence_score is None)
 
 
 # Privacy tier definitions -- which providers are eligible per tier
@@ -64,27 +66,34 @@ async def consult_ensemble(
     """
     # Determine which provider+model pairs to consult
     eligible = _PRIVACY_TIERS.get(privacy_tier, _PRIVACY_TIERS["any"])
+    # Record every provider excluded by tier or availability so it is SURFACED
+    # (providers_skipped), never silently dropped.
+    skipped: List[str] = []
     if selected is None:
         # all available + eligible providers, default model each
-        targets: List[ProviderSpec] = [
-            ProviderSpec(provider=name, model=None)
-            for name, p in providers.items()
-            if p.config.available and name in eligible
-        ]
+        targets: List[ProviderSpec] = []
+        for name, p in providers.items():
+            if name not in eligible:
+                skipped.append(f"{name}: ineligible under tier={privacy_tier}")
+            elif not p.config.available:
+                skipped.append(f"{name}: unavailable (no key/config)")
+            else:
+                targets.append(ProviderSpec(provider=name, model=None))
     else:
         targets = []
         for s in selected:
-            if isinstance(s, str):
-                spec = ProviderSpec(provider=s, model=None)
+            spec = ProviderSpec(provider=s, model=None) if isinstance(s, str) else s
+            if spec.provider not in eligible:
+                skipped.append(f"{spec.provider}: ineligible under tier={privacy_tier}")
+            elif spec.provider not in providers or not providers[spec.provider].config.available:
+                skipped.append(f"{spec.provider}: unavailable (no key/config)")
             else:
-                spec = s
-            if spec.provider in eligible and spec.provider in providers and providers[spec.provider].config.available:
                 targets.append(spec)
 
     if not targets:
         return EnsembleResponse(
             synthesized_response="(no eligible providers; check API keys + privacy_tier)",
-            convergence_score=0.0,
+            convergence_score=None,
             divergence_findings=[f"no providers eligible under tier={privacy_tier}"],
             confidence_signal="low",
             providers_consulted=[],
@@ -92,6 +101,7 @@ async def consult_ensemble(
             total_cost_usd=0.0,
             total_latency_ms=0,
             raw_outputs={},
+            providers_skipped=skipped,
         )
 
     # Dispatch in parallel
@@ -150,4 +160,6 @@ async def consult_ensemble(
         total_cost_usd=round(total_cost, 6),
         total_latency_ms=total_latency_ms,
         raw_outputs=raw,
+        providers_skipped=skipped,
+        single_provider=getattr(syn, "single_provider", False),
     )

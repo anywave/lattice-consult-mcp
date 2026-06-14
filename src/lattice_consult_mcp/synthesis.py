@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from typing import Dict, List, Tuple
+from typing import Dict, List, Optional, Tuple
 
 try:
     from rapidfuzz import fuzz
@@ -69,9 +69,10 @@ def _cluster_claims(
 @dataclass
 class SynthesisResult:
     synthesized_response: str
-    convergence_score: float
+    convergence_score: Optional[float]  # None = undefined (single source), NOT 0.0 = disagreement
     divergence_findings: List[str]
     confidence_signal: str  # "high" | "medium" | "low"
+    single_provider: bool = False  # True when only one provider was consulted (n=1)
 
 
 def synthesize_convergence(
@@ -88,13 +89,15 @@ def synthesize_convergence(
         )
 
     if len(successful_responses) == 1:
-        # Only one provider -- pass through; report low convergence (n=1)
+        # Only one provider -- nothing to converge against. convergence_score is
+        # UNDEFINED (None), not 0.0; 0.0 would falsely read as "total disagreement".
         r = successful_responses[0]
         return SynthesisResult(
             synthesized_response=r.response,
-            convergence_score=0.0,
+            convergence_score=None,
             divergence_findings=[f"only one provider consulted: {r.provider}"],
             confidence_signal="low",
+            single_provider=True,
         )
 
     per_provider_sentences = {
