@@ -27,10 +27,14 @@ GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta"
 
 class GeminiProvider(LatticeProvider):
     name = "gemini"
-    default_model = "gemini-flash-latest"  # 1M context, primary angle
+    default_model = "gemini-3.1-pro-preview"  # RADIX: use Gemini 3.1 Pro, not Flash; env override LATTICE_GEMINI_DEFAULT_MODEL
 
     def __init__(self, config: ProviderConfig):
         super().__init__(config)
+        # base.__init__ only stores config; it does NOT set self.default_model,
+        # so consult() (which reads self.default_model) would otherwise ignore the
+        # env-configured default. Propagate it so LATTICE_GEMINI_DEFAULT_MODEL wins.
+        self.default_model = config.default_model or type(self).default_model
         self._base_url = config.base_url or GEMINI_BASE_URL
 
     async def consult(self, system, prompt, model=None, max_tokens=2048, timeout_s=60.0) -> SingleResponse:
@@ -60,6 +64,12 @@ class GeminiProvider(LatticeProvider):
             )
             if is_thinking_model:
                 generation_config["thinkingConfig"] = {"thinkingBudget": 0}
+            elif "gemini-3" in m:
+                # Gemini 3.x (incl. 3.1-pro-preview) thinks dynamically and bills
+                # thinking against maxOutputTokens. Forcing thinkingBudget=0 may be
+                # rejected by 3-Pro, so instead raise the visible-output ceiling so
+                # thinking can't starve the reply (guards the silent-truncation bug).
+                generation_config["maxOutputTokens"] = max(max_tokens, max_tokens + 4096)
 
             payload = {
                 "contents": [
@@ -138,7 +148,7 @@ def build_config() -> ProviderConfig:
         name="gemini",
         api_key=api_key,
         base_url=base_url,
-        default_model="gemini-flash-latest",
+        default_model=os.environ.get("LATTICE_GEMINI_DEFAULT_MODEL", "gemini-3.1-pro-preview"),
         cost_in_per_mtok=1.25,
         cost_out_per_mtok=5.0,
     )
