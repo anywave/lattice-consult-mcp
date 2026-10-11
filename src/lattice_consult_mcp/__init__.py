@@ -1,6 +1,6 @@
 """lattice-consult-mcp -- cross-provider LLM consultation MCP server.
 
-First concrete impl of Trellis DSM-26 AngularTechnique substrate per FP-MSG-310 §4.
+First concrete implementation of the Trellis DSM-26 AngularTechnique substrate pattern.
 
 Side-effect on import: `truststore.inject_into_ssl()` patches Python's `ssl`
 module to use the operating system's certificate store instead of the bundled

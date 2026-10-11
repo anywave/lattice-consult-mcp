@@ -27,7 +27,7 @@ GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta"
 
 class GeminiProvider(LatticeProvider):
     name = "gemini"
-    default_model = "gemini-3.1-pro-preview"  # RADIX: use Gemini 3.1 Pro, not Flash; env override LATTICE_GEMINI_DEFAULT_MODEL
+    default_model = "gemini-3.1-pro-preview"  # Gemini 3.1 Pro by default, not Flash; env override LATTICE_GEMINI_DEFAULT_MODEL
 
     def __init__(self, config: ProviderConfig):
         super().__init__(config)
