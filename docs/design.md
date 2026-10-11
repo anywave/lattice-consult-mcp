@@ -1,12 +1,12 @@
 # lattice-consult-mcp -- design
 
-**Status:** v0.1 spec, 2026-06-02. First concrete impl of Trellis DSM-26 `AngularTechnique` substrate (per FP-MSG-310 §4 / TR-023 §4).
+**Status:** v0.1 spec, 2026-06-02. First concrete implementation of the Trellis DSM-26 `AngularTechnique` substrate pattern.
 
 ## Goal
 
-A single MCP server that exposes cross-provider LLM consultation as tools, callable from any Claude Code lattice node (or Codex CLI, or Gemini CLI). The server runs 1-N providers in parallel for a single prompt, synthesizes the responses, and returns ONE answer plus confidence/divergence signals.
+A single MCP server that exposes cross-provider LLM consultation as tools, callable from Claude Code (or Codex CLI, Gemini CLI, or any MCP client). The server runs 1-N providers in parallel for a single prompt, synthesizes the responses, and returns ONE answer plus confidence/divergence signals.
 
-**The crucial design move:** the orchestrator (Claude) consumes the synthesized output, not the raw per-provider outputs. The operator's attention budget (~2.7k tokens per RADIX self-report) stays intact.
+**The crucial design move:** the orchestrator (Claude) consumes the synthesized output, not the raw per-provider outputs. The operator's attention budget stays intact.
 
 ## Providers (v0.1)
 

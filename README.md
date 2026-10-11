@@ -52,7 +52,7 @@ Copy `.env.example` to `.env` for convenience; `.env` is gitignored.
 
 ## Wire into Claude Code
 
-Add to `~/.claude/claude_desktop_config.json` (or `.mcp.json` in your project):
+Add to `.mcp.json` in your project (or register it with `claude mcp add`; Claude Desktop uses the same shape in `claude_desktop_config.json`):
 
 ```json
 {
@@ -111,14 +111,14 @@ consult_ensemble({
 })
 ```
 
-Only Jan answers. Cost $0. Zero data leaves your network.
+Only Jan answers, so no cloud provider is called and cost is $0. The prompt goes only to `LATTICE_JAN_BASE_URL` (localhost by default); if you point that at another machine, the prompt travels there.
 
 **Single-provider escape hatch:**
 
 ```
 consult_single({
   provider: "gemini",
-  model: "gemini-2.5-pro",
+  model: "gemini-3.1-pro-preview",
   prompt: "Summarize this 800-page PDF: ..."
 })
 ```
@@ -140,8 +140,8 @@ consult_single({
 |---|---|
 | `any` (default) | all 5 |
 | `cloud_ok` | all 5 |
-| `local_only` | Jan only — zero-egress for sensitive content |
-| `opt_out_only` | Anthropic, OpenAI (API with opt-out), Jan — providers documented as not training on inputs |
+| `local_only` | Jan only — no cloud provider; data goes only to the configured Jan endpoint |
+| `opt_out_only` | Anthropic, OpenAI, Jan — API providers whose published terms say API inputs are not used for training by default (check the current terms yourself) |
 
 ## Cost shape
 
@@ -151,7 +151,7 @@ Per `consult_ensemble` call with all 5 providers, typical ~2k input + ~500 outpu
 |---|---|
 | OpenAI gpt-4o | ~$0.010 |
 | Anthropic Claude Sonnet | ~$0.013 |
-| Gemini 2.5 Pro | ~$0.005 |
+| Gemini 3.1 Pro (preview; default) | ~$0.005 (check current pricing) |
 | xAI grok-4-fast | ~$0.013 |
 | Jan (local) | $0 |
 | **Total** | **~$0.04 / ensemble call** |
@@ -217,6 +217,10 @@ See [`docs/design.md`](docs/design.md) for the full architectural spec including
 ## Contributing
 
 Issues and pull requests welcome. For new provider adapters, follow the pattern in `providers/openai_provider.py` (cloud) or `providers/jan_provider.py` (local). The `LatticeProvider` trait surface is small (one async method) and provider adapters should never raise — return errors in `SingleResponse.error` so ensemble degrades gracefully.
+
+## Security
+
+See [`SECURITY.md`](SECURITY.md).
 
 ## License
 

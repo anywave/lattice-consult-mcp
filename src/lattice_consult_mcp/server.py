@@ -82,7 +82,8 @@ def _build_server() -> tuple[Server, Dict[str, LatticeProvider]]:
                             "default": "any",
                             "description": (
                                 "Provider eligibility filter. local_only = Jan only "
-                                "(zero-egress for sensitive content). opt_out_only = "
+                                "(no cloud provider is called; data goes only to the "
+                                "configured Jan endpoint). opt_out_only = "
                                 "providers documented as not training on inputs."
                             ),
                         },
